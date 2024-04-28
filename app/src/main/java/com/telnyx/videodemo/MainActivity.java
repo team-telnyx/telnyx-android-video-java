@@ -5,6 +5,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.ArrayMap;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -24,6 +25,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.telnyx.video.sdk.Room;
+import com.telnyx.video.sdk.model.AudioDevice;
 import com.telnyx.video.sdk.utilities.CameraDirection;
 import com.telnyx.video.sdk.utilities.PublishConfigHelper;
 import com.telnyx.video.sdk.webSocket.model.send.ExternalData;
@@ -71,8 +73,6 @@ import timber.log.Timber;
 
 public class MainActivity extends AppCompatActivity {
 
-    private ProcessCameraProvider cameraProvider = null;
-    private ListenableFuture<ProcessCameraProvider> cameraProviderFuture = null;
     private ActivityResultLauncher<String[]> requestPermissionLauncher;
     static String refreshToken;
     static int refreshTokenExpiresAt;
@@ -98,6 +98,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView remoteParticipantTileName;
     private TextView remoteParticipantTileId;
 
+    Handler handler = new Handler();
 
 
     private SurfaceViewRenderer selfTileSurface;
@@ -113,6 +114,9 @@ public class MainActivity extends AppCompatActivity {
 
 
     private PublishConfigHelper publishConfigHelper;
+
+    private Map<String, VideoTrack>  viewHolderMap = new ArrayMap<>();
+
 
     CardView progressBar;
     private void requestPermissions() {
@@ -162,7 +166,7 @@ public class MainActivity extends AppCompatActivity {
             progressBar.setVisibility(View.GONE);
         }
     }
-
+    JoinRoomDialogFragment dialog;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -176,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
-        JoinRoomDialogFragment dialog = new JoinRoomDialogFragment(this);
+        dialog  = new JoinRoomDialogFragment(this);
         progressBar =  findViewById(R.id.progressBarLayout);
         previewLoginView = findViewById(R.id.previewLoginView);
         //testCamera();
@@ -191,26 +195,7 @@ public class MainActivity extends AppCompatActivity {
             dialog.show(getSupportFragmentManager(), "joinRoomDialog");
             dialog.setCancelable(false);
         } else {
-
-            OfflineRoom offlineRoom = sharedPref.getOfflineRoom();
-            tvRoomId.setText(String.format("Room ID: %s", offlineRoom.getRoomId()));
-            tvParticipant.setText(String.format("Participant: %s", offlineRoom.getParticipant()));
-
-            selfTileSurface = findViewById(R.id.participant_tile_surface);
-            participantTileName = findViewById(R.id.participant_tile_name);
-            participantTileId = findViewById(R.id.participant_tile_id);
-            // Set the OnClickListener for the buttons
-            btnJoin.setOnClickListener(v -> {
-                // Handle the join action
-                createToken(UUID.fromString(offlineRoom.getRoomId()), offlineRoom.getParticipant());
-            });
-
-            btnDelete.setOnClickListener(v -> {
-                // Handle the delete action
-                Toast.makeText(this, "Not Implemented", Toast.LENGTH_SHORT).show();
-            });
-
-
+            initJoined();
         }
         requestPermissions();
 
@@ -219,7 +204,6 @@ public class MainActivity extends AppCompatActivity {
             if (selfParticipant == null) return;
             if (!cameraStarted){
                 startCameraCapture();
-                startAudioCapture();
             }else  {
                stopCameraCapture();
             }
@@ -229,11 +213,34 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    void initJoined() {
+        OfflineRoom offlineRoom = sharedPref.getOfflineRoom();
+        tvRoomId.setText(String.format("Room ID: %s", offlineRoom.getRoomId()));
+        tvParticipant.setText(String.format("Participant: %s", offlineRoom.getParticipant()));
+
+        selfTileSurface = findViewById(R.id.participant_tile_surface);
+        participantTileName = findViewById(R.id.participant_tile_name);
+        participantTileId = findViewById(R.id.participant_tile_id);
+        // Set the OnClickListener for the buttons
+        btnJoin.setOnClickListener(v -> {
+            // Handle the join action
+            createToken(UUID.fromString(offlineRoom.getRoomId()), offlineRoom.getParticipant());
+        });
+
+        btnDelete.setOnClickListener(v -> {
+            // Handle the delete action
+            Toast.makeText(this, "Not Implemented", Toast.LENGTH_SHORT).show();
+        });
+    }
+
     private void getObservers(){
 
         Timber.tag("RoomFragment").d("Room Joined");
         if (room != null) {
 
+            /*
+            * Observe for new participants joining the room
+            * */
             room.getJoinedParticipant().observe(this, participantEvent -> {
                 showProgress(false);
 
@@ -253,6 +260,8 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 setupRemoteParticipant(participant);
+
+
             });
 
             room.getParticipantsObservable().observe(this, participants -> {
@@ -273,6 +282,13 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                 }
+                startCameraCapture();
+                cameraStarted = true;
+
+                // This is a hack to start the audio after 2 seconds
+                // Starting the audio immediately after the video causes the video to not work
+                // This is a temporary fix
+                handler.postDelayed(this::startAudioCapture, 2000);
             });
 
             room.getParticipantStreamChanged().observe(this, participantStreamEvent -> {
@@ -289,21 +305,22 @@ public class MainActivity extends AppCompatActivity {
 
                 if (participant.getParticipantId().equals(selfParticipant.getParticipantId())) {
                     selfParticipant = participant;
-                   // startCameraCapture();
-                    streamParticipant(selfParticipant);
+                    streamParticipant(selfParticipant,true);
 
                 } else {
                     remoteParticipant = participant;
-                    streamParticipant(remoteParticipant);
+                    streamParticipant(remoteParticipant,false);
                 }
             });
+
+
 
 
         }
     }
 
 
-    private  void streamParticipant(Participant participant){
+    private  void streamParticipant(Participant participant,Boolean isSelf){
 
         ParticipantStream stream = null;
 
@@ -315,17 +332,44 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (stream != null && StreamStatus.ENABLED.equals(stream.getVideoEnabled())) {
-            Timber.tag("ParticipantTileAdapter").d("onBind() STARTED");
-            room.addSubscription(participant.getParticipantId(), LocalStreamKey, new StreamConfig(true,true));
-            room.setParticipantSurface(participant.getParticipantId(), selfTileSurface, LocalStreamKey);
 
-            VideoTrack videoTrack = stream.getVideoTrack();
-            if (videoTrack == null){
-                Timber.e("VideoTrack is null");
-                return;
+            if (isSelf){
+                Timber.tag("ParticipantTileAdapter").d("onBind() STARTED");
+
+                room.addSubscription(participant.getParticipantId(), LocalStreamKey, new StreamConfig(true,true));
+                room.setParticipantSurface(participant.getParticipantId(), selfTileSurface, LocalStreamKey);
+
+                VideoTrack videoTrack = stream.getVideoTrack();
+                if (videoTrack == null){
+                    Timber.e("VideoTrack is null");
+                    return;
+                }
+
+                if (viewHolderMap.get(participant.getParticipantId()) != videoTrack){
+
+                    VideoTrack oldVideoTrack = viewHolderMap.get(participant.getParticipantId());
+                    if (oldVideoTrack != null){
+                        oldVideoTrack.removeSink(selfTileSurface);
+                        selfTileSurface.release();
+                    }
+
+                    viewHolderMap.put(participant.getParticipantId(), videoTrack);
+                    videoTrack.addSink(selfTileSurface);
+                    videoTrack.setEnabled(true);
+                }
+            } else {
+                Timber.tag("ParticipantTileAdapter").d("onBind() STARTED");
+                room.addSubscription(participant.getParticipantId(), LocalStreamKey, new StreamConfig(true,true));
+                room.setParticipantSurface(participant.getParticipantId(), remoteParticipantTileSurface, LocalStreamKey);
+
+                VideoTrack videoTrack = stream.getVideoTrack();
+                if (videoTrack == null){
+                    Timber.e("VideoTrack is null");
+                    return;
+                }
+                videoTrack.addSink(remoteParticipantTileSurface);
+                videoTrack.setEnabled(true);
             }
-            videoTrack.addSink(selfTileSurface);
-            videoTrack.setEnabled(true);
         } else {
             Timber.tag("ParticipantTileAdapter").d("onBind() PAUSED");
             room.removeSubscription(participant.getParticipantId(), LocalStreamKey);
@@ -348,6 +392,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        // Check if the stream is enabled and start the video
         if (stream != null && StreamStatus.ENABLED.equals(stream.getVideoEnabled())) {
             Timber.tag("ParticipantTileAdapter").d("onBind() STARTED");
             room.addSubscription(participant.getParticipantId(), LocalStreamKey, new StreamConfig(true,true));
@@ -400,6 +445,8 @@ public class MainActivity extends AppCompatActivity {
     boolean cameraStarted = false;
 
     boolean selfPreviewSet = false;
+
+    boolean shouldPublish = true;
     private void startCameraCapture() {
         boolean shouldPublish = publishConfigHelper == null;
         if (shouldPublish) {
@@ -411,10 +458,12 @@ public class MainActivity extends AppCompatActivity {
             );
         }
 
-        if (shouldPublish) {
+        try {
             publishConfigHelper.setSurfaceView(selfTileSurface);
-            selfPreviewSet = true;
+        }       catch (Exception e) {
+            e.printStackTrace();
         }
+
 
         if (publishConfigHelper != null) {
             publishConfigHelper.createVideoTrack(
@@ -428,8 +477,8 @@ public class MainActivity extends AppCompatActivity {
                 room.updateStream(publishConfigHelper);
             }
         }
-
     }
+
 
     private void startAudioCapture() {
         boolean shouldPublish = publishConfigHelper == null;
@@ -441,14 +490,14 @@ public class MainActivity extends AppCompatActivity {
                     SELF_STREAM_ID
             );
         }
-        if (shouldPublish) {
-            publishConfigHelper.createAudioTrack(true, AUDIO_TRACK_KEY);
-        }
+        publishConfigHelper.createAudioTrack(true, AUDIO_TRACK_KEY);
+
         if (shouldPublish) {
             room.addStream(publishConfigHelper);
         } else {
             room.updateStream(publishConfigHelper);
         }
+        room.setAudioOutputDevice(AudioDevice.LOUDSPEAKER);
     }
 
      ApiService getApiService() {
@@ -554,6 +603,12 @@ public class MainActivity extends AppCompatActivity {
         publishConfigHelper.stopCapture();
         room.updateStream(publishConfigHelper);
         publishConfigHelper.releaseSurfaceView(selfTileSurface);
+    }
+
+    private void stopAudioCapture() {
+        if (publishConfigHelper == null) return;
+        publishConfigHelper.disposeAudio();
+        room.updateStream(publishConfigHelper);
     }
 
     @Override

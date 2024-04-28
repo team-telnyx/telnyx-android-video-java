@@ -12,6 +12,8 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -20,6 +22,7 @@ import androidx.annotation.Nullable;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.telnyx.video.sdk.Room;
 import com.telnyx.video.sdk.webSocket.model.send.ExternalData;
 import com.telnyx.videodemo.models.CreateRoomRequest;
@@ -49,8 +52,15 @@ public class JoinRoomDialogFragment extends BottomSheetDialogFragment {
 
     Button buttonJoin;
     EditText roomNameEditText;
+    LinearLayout joinRoomLayout;
+    RelativeLayout createRoomLayout;
+
     EditText participantNameEditText;
 
+
+    EditText roomUuidEditText;
+
+    SwitchMaterial joinOrCreateSwitch;
 
 
     @Nullable
@@ -59,9 +69,16 @@ public class JoinRoomDialogFragment extends BottomSheetDialogFragment {
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.join_room_dialog, container, false);
         buttonJoin = (Button) view.findViewById(R.id.buttonJoinRoom);
-        roomNameEditText = view.findViewById(R.id.room_uuid_et);
+        roomNameEditText = view.findViewById(R.id.room_name_et);
+        roomUuidEditText = view.findViewById(R.id.room_uuid_et);
         participantNameEditText = view.findViewById(R.id.participant_name_ti_et);
+        joinOrCreateSwitch = view.findViewById(R.id.joinOrCreateSwitch);
+        joinRoomLayout = view.findViewById(R.id.join_room_layout);
+        createRoomLayout = view.findViewById(R.id.create_room_rl);
         roomNameEditText.setText("roomDemo1");
+        String deviceName = android.os.Build.MODEL;
+        participantNameEditText.setText("Android User" + deviceName);
+        roomUuidEditText.setText("382adb91-aa28-4815-a9a7-48fd227466f3");
         return view;
     }
 
@@ -82,12 +99,28 @@ public class JoinRoomDialogFragment extends BottomSheetDialogFragment {
             dialog.setDismissWithAnimation(false);
         }
 
-        View buttonJoin = view.findViewById(R.id.buttonJoinRoom);
+        buttonJoin = view.findViewById(R.id.buttonJoinRoom);
         buttonJoin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Handle click
+                // Handle join room
+                if (joinOrCreateSwitch.isChecked()) {
+                    if (roomUuidEditText.getText().toString().isEmpty()) {
+                        roomUuidEditText.setError("Room UUID is required");
+                        return;
+                    }
 
+                    UUID roomUuid = UUID.fromString(roomUuidEditText.getText().toString());
+                    String participantName = participantNameEditText.getText().toString();
+                    mainActivity.sharedPref.saveOfflineRoom(new OfflineRoom(roomUuid.toString(), participantName));
+                    mainActivity.createToken(roomUuid, participantName);
+                    mainActivity.initJoined();
+                    dismiss();
+                    return;
+                }
+
+
+                // Handle create room
                 if (roomNameEditText.getText().toString().isEmpty()) {
                     roomNameEditText.setError("Room name is required");
                     return;
@@ -109,12 +142,24 @@ public class JoinRoomDialogFragment extends BottomSheetDialogFragment {
                         String participantName = participantNameEditText.getText().toString();
                         mainActivity.sharedPref.saveOfflineRoom(new OfflineRoom(roomUuid.toString(), participantName));
                         mainActivity.createToken(roomUuid, participantName);
-                        dismiss();
-
+                        mainActivity.initJoined();
                     }
                 });
             }
         });
+
+        joinOrCreateSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                joinRoomLayout.setVisibility(View.VISIBLE);
+                createRoomLayout.setVisibility(View.INVISIBLE);
+                buttonJoin.setText("Join Room  ");
+            } else {
+                joinRoomLayout.setVisibility(View.INVISIBLE);
+                createRoomLayout.setVisibility(View.VISIBLE);
+                buttonJoin.setText("Create Room   ");
+            }
+        });
+
     }
 
 

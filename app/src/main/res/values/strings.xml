@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Video Demo</string>
     <string name="room_name_hint">Enter a Room name</string>
+    <string name="room_id_hint">Enter a Room UUID</string>
     <string name="room_name_label">Room Name:</string>
     <string name="room_id_label">Room ID:</string>
     <string name="room_token_label">Room TOKEN:</string>
@@ -26,7 +27,7 @@
     <string name="chat_send">SEND</string>
     <string name="video_stats_title">VIDEO STATS</string>
     <string name="audio_stats_title">AUDIO STATS</string>
-    <string name="join_room_explainer_text">Enter the room UUID and choose a name for yourself</string>
+    <string name="join_room_explainer_text">Enter the room UUID or  Create a new one</string>
     <string name="dummy_room_uuid">Room Name</string>
     <string name="join_room_button_text">Join Room</string>
     <string name="create_room">Create Room</string>
