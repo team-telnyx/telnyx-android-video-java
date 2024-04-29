@@ -18,5 +18,4 @@ This guide will walk you through the process of using the Telnyx Android Video S
 2. **Subscribe Participant**: After adding a participant to the room, you need to subscribe to the participant's stream. 
 
 
-## Start Camera
-```markdown
+
