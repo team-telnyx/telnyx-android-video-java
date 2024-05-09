@@ -22,7 +22,7 @@ public class OkHttpClientInstance {
 
                 // Request customization: add request headers
                 okhttp3.Request request = original.newBuilder()
-                        .header("Authorization", "Bearer KEY...")
+                        .header("Authorization", "Bearer YOUR_API_KEY")
                         .method(original.method(), original.body())
                         .build();
 

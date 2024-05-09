@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Fullscreen SurfaceViewRenderer for the remote video -->
+    <org.webrtc.SurfaceViewRenderer
+        android:id="@+id/remote_participant_tile_surface"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Smaller SurfaceViewRenderer for the local video (local user's camera stream) -->
+    <org.webrtc.SurfaceViewRenderer
+        android:id="@+id/participant_tile_surface"
+        android:layout_width="75dp"
+        android:layout_height="100dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="10dp"
+        android:background="@android:color/transparent" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btn_end_call"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        android:backgroundTint="@android:color/holo_red_dark"
+        app:fabSize="normal"
+        app:rippleColor="@android:color/white" />
+
+</RelativeLayout>

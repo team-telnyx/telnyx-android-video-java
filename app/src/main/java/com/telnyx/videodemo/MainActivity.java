@@ -1,6 +1,7 @@
 package com.telnyx.videodemo;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -85,6 +86,7 @@ public class MainActivity extends AppCompatActivity {
     private Button btnJoin;
 
     private Button toggleCamera;
+    private Button btnDisconnectRoom;
 
     private Button btnDelete;
 
@@ -190,6 +192,7 @@ public class MainActivity extends AppCompatActivity {
         tvParticipant = findViewById(R.id.tvParticipant);
         btnJoin = findViewById(R.id.btnJoin);
         toggleCamera = findViewById(R.id.btnToggleCamera);
+        btnDisconnectRoom = findViewById(R.id.disconnectRoom);
         btnDelete = findViewById(R.id.btnDelete);
         if (sharedPref.getOfflineRoom() == null) {
             dialog.show(getSupportFragmentManager(), "joinRoomDialog");
@@ -198,6 +201,16 @@ public class MainActivity extends AppCompatActivity {
             initJoined();
         }
         requestPermissions();
+
+
+
+        btnDisconnectRoom.setOnClickListener(v -> {
+            // Handle the disconnect action
+            if (room != null) {
+                room.disconnect();
+            }
+        });
+
 
         toggleCamera.setOnClickListener(v -> {
             // Handle the reset action
@@ -282,6 +295,9 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                 }
+                if (cameraStarted){
+                    return;
+                }
                 startCameraCapture();
                 cameraStarted = true;
 
@@ -300,9 +316,6 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-
-
-
                 if (participant.getParticipantId().equals(selfParticipant.getParticipantId())) {
                     selfParticipant = participant;
                     streamParticipant(selfParticipant,true);
@@ -312,10 +325,6 @@ public class MainActivity extends AppCompatActivity {
                     streamParticipant(remoteParticipant,false);
                 }
             });
-
-
-
-
         }
     }
 
@@ -549,7 +558,18 @@ public class MainActivity extends AppCompatActivity {
                     GetTokenInfo tokenInfo = response.body().getData();
                     refreshToken = tokenInfo.getToken();
                     refreshTokenExpiresAt = calculateTokenExpireTime(tokenInfo.getRefresh_token_expires_at());
-                    room = new Room(MainActivity.this, roomId,refreshToken, new ExternalData(randomInt(7), participantName), true);
+
+                    startActivity(new Intent(MainActivity.this, TelnyxVisitationActivity.class)
+                            .putExtra("roomName", roomId.toString())
+                            .putExtra("token", refreshToken)
+                            .putExtra("idVideoCall", new Random().nextLong())
+                            .putExtra("jwt", "jwt")
+                            .putExtra("url", "https://api.telnyx.com/v2/")
+                            .putExtra("oldIdentity", new Random().toString())
+                    );
+
+                    return;
+       /*             room = new Room(MainActivity.this, roomId,refreshToken, new ExternalData(randomInt(7), participantName), false);
                     joinRomCard.setVisibility(View.GONE);
                     room.getStateObservable().observe(MainActivity.this, state -> {
 
@@ -560,7 +580,7 @@ public class MainActivity extends AppCompatActivity {
                             startRefreshTokenJob();
                         }
                     });
-                    room.connect();
+                    room.connect();*/
 
                 } else {
                     System.out.println("Request Error :: " + response.errorBody());
@@ -596,7 +616,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        selfTileSurface.release();
+    }
 
     private void stopCameraCapture() {
         if (publishConfigHelper == null) return;
