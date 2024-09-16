@@ -15,6 +15,7 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
@@ -23,6 +24,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.lifecycle.Observer;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.telnyx.video.sdk.Room;
@@ -42,7 +44,12 @@ import com.telnyx.videodemo.models.createToken.GetTokenInfo;
 import com.telnyx.webrtc.sdk.CredentialConfig;
 import com.telnyx.webrtc.sdk.TelnyxClient;
 import com.telnyx.webrtc.sdk.model.LogLevel;
+import com.telnyx.webrtc.sdk.model.SocketMethod;
+import com.telnyx.webrtc.sdk.model.SocketStatus;
 import com.telnyx.webrtc.sdk.model.TxServerConfiguration;
+import com.telnyx.webrtc.sdk.verto.receive.ReceivedMessageBody;
+import com.telnyx.webrtc.sdk.verto.receive.SocketObserver;
+import com.telnyx.webrtc.sdk.verto.receive.SocketResponse;
 
 import org.webrtc.SurfaceViewRenderer;
 import org.webrtc.VideoTrack;
@@ -181,16 +188,47 @@ public class MainActivity extends AppCompatActivity {
         TelnyxClient txClient = new TelnyxClient(this);
         Timber.d("Connecting to Telnyx");
         txClient.connect(new TxServerConfiguration(), new CredentialConfig(
-                "apiKey",
-                "apiSecret",
+                "",
+                "",
                 "connectionId",
                 "jwt",
                 "username",
-                "password",
-                10000,
+                null,
+                null,
                 LogLevel.ALL,
                 true
         ),null,true);
+
+        txClient.getSocketResponse().observe(this, new SocketObserver<ReceivedMessageBody>() {
+            @Override
+            public void onSocketDisconnect() {
+
+            }
+
+            @Override
+            public void onError(@Nullable String s) {
+
+            }
+
+            @Override
+            public void onLoading() {
+
+            }
+
+            @Override
+            public void onMessageReceived(@Nullable ReceivedMessageBody receivedMessageBody) {
+                assert receivedMessageBody != null;
+                if (receivedMessageBody.getMethod().equals(SocketMethod.CLIENT_READY.getMethodName())) {
+                    txClient.newInvite("isaac", "izac", "destinatiob","",null);
+                }
+
+            }
+
+            @Override
+            public void onConnectionEstablished() {
+
+            }
+        });
 
         sharedPref = new SharedPref(this);
         requestPermissionLauncher =
