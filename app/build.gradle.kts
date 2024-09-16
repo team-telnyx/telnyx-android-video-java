@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.androidApplication)
+    id("com.android.application") version "8.3.2"
 }
 
 android {
@@ -42,9 +42,11 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
-    implementation ("com.github.team-telnyx:telnyx-meet-android-sdk:0.3.2@aar") {
+    implementation ("com.github.team-telnyx:telnyx-meet-android-sdk:0.3.7@aar") {
         isTransitive = true
     }
+    implementation("com.github.team-telnyx:telnyx-webrtc-android:1.3.9")
+
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
@@ -56,4 +58,6 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.3.3");
     implementation("androidx.camera:camera-lifecycle:1.3.3");
     implementation("androidx.camera:camera-view:1.3.3");
+    implementation("com.braintreepayments.api:card:4.39.0")
+
 }

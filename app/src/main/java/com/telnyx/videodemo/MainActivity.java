@@ -39,6 +39,10 @@ import com.telnyx.videodemo.models.OfflineRoom;
 import com.telnyx.videodemo.models.SharedPref;
 import com.telnyx.videodemo.models.createToken.CreateTokenRequest;
 import com.telnyx.videodemo.models.createToken.GetTokenInfo;
+import com.telnyx.webrtc.sdk.CredentialConfig;
+import com.telnyx.webrtc.sdk.TelnyxClient;
+import com.telnyx.webrtc.sdk.model.LogLevel;
+import com.telnyx.webrtc.sdk.model.TxServerConfiguration;
 
 import org.webrtc.SurfaceViewRenderer;
 import org.webrtc.VideoTrack;
@@ -173,6 +177,20 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        TelnyxClient txClient = new TelnyxClient(this);
+        Timber.d("Connecting to Telnyx");
+        txClient.connect(new TxServerConfiguration(), new CredentialConfig(
+                "apiKey",
+                "apiSecret",
+                "connectionId",
+                "jwt",
+                "username",
+                "password",
+                10000,
+                LogLevel.ALL,
+                true
+        ),null,true);
 
         sharedPref = new SharedPref(this);
         requestPermissionLauncher =
